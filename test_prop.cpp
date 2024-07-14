@@ -1,5 +1,5 @@
-#include "logic.hpp"
-#include <functional>
+#define NOT_NAMESPACED
+#include "logic/logic.hpp"
 
 using namespace logic;
 

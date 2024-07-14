@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../logic.hpp"
+#include "../logic/logic.hpp"
 
 using namespace logic;
 

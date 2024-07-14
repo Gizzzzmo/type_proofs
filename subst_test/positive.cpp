@@ -1,4 +1,4 @@
-#include "../logic.hpp"
+#include "../logic/logic.hpp"
 #include "test_types.hpp"
 
 

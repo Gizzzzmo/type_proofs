@@ -2,31 +2,15 @@
 
 #include <concepts>
 #include <functional>
-#include <sys/cdefs.h>
-#include <type_traits>
+
+#include "empty_types.hpp"
+#include "algo.hpp"
 
 namespace logic {
 
+#ifdef NOT_NAMESPACED
 } // namespace logic
-struct MakeExpression;
-
-template<typename T>
-concept Expression = std::is_base_of_v<MakeExpression, T> && sizeof(T) == 1;
-
-struct True;
-struct False;
-
-template<Expression E>
-struct Not;
-
-template<Expression Assumption, Expression Consequence>
-struct Implies;
-
-template<Expression E1, Expression E2>
-struct And;
-
-template<Expression E1, Expression E2>
-struct Or;
+#endif
 
 struct MakeExpression {
     constexpr MakeExpression(False) __attribute__((const));
@@ -38,19 +22,31 @@ struct MakeExpression {
 
 struct Axioms;
 
-#define MAKE_EXPRESSION()\
+#define MAKE_EXPRESSION(T)\
 using MakeExpression::MakeExpression;\
 friend class Axioms;\
-friend class MakeExpression
+friend class MakeExpression;\
 
+struct GenericVariableMarker {};
+
+template<typename T>
+struct MakeVariable : GenericVariableMarker {};
+
+#define MAKE_VARIABLE(T) using type = T
+
+template<typename T, fv_tag_t _x>
+struct FV : MakeVariable<T> {
+    MAKE_VARIABLE(T);
+    static constexpr fv_tag_t x = _x;
+};
 
 struct True : MakeExpression {
-    MAKE_EXPRESSION();
+    MAKE_EXPRESSION(True);
     constexpr True() __attribute__((const));
 };
 
 struct False : MakeExpression {
-    MAKE_EXPRESSION();
+    MAKE_EXPRESSION(False);
     template<Expression E>
     constexpr False(E, Not<E>) __attribute__((const));
     template<Expression E>
@@ -63,7 +59,7 @@ struct False : MakeExpression {
 
 template<Expression E>
 struct Not : MakeExpression {
-    MAKE_EXPRESSION();
+    MAKE_EXPRESSION(Not<E>);
     constexpr Not(Implies<E, False>) __attribute__((const));
     template<Expression NegE> requires std::same_as<E, Not<NegE>>
     constexpr NegE elim() const __attribute__((const));
@@ -71,7 +67,8 @@ struct Not : MakeExpression {
 
 template<Expression E1, Expression E2>
 struct And : MakeExpression {
-    MAKE_EXPRESSION();
+    using Self = And<E1, E2>;
+    MAKE_EXPRESSION(Self);
     constexpr And(E1, E2) __attribute__((const));
     constexpr E1 left_elim() const __attribute__((const));
     constexpr E2 right_elim() const __attribute__((const));
@@ -79,7 +76,8 @@ struct And : MakeExpression {
 
 template<Expression E1, Expression E2>
 struct Or : MakeExpression {
-    MAKE_EXPRESSION();
+    using Self = Or<E1, E2>;
+    MAKE_EXPRESSION(Self);
     constexpr Or(E1) __attribute__((const));
     constexpr Or(E2) requires (!std::same_as<E1, E2>) __attribute__((const));
     template<Expression Consequence>
@@ -91,7 +89,8 @@ using deriv = std::function<Consequence(Assumptions...)>;
 
 template<Expression Assumption, Expression Consequence>
 struct Implies : MakeExpression {
-    MAKE_EXPRESSION();
+    using Self = Implies<Assumption, Consequence>;
+    MAKE_EXPRESSION(Self);
     template<Expression... Context>
     constexpr Implies(deriv<Consequence, Assumption, Context...>, Context...) __attribute__((const));
     constexpr Consequence elim(Assumption) const __attribute__((const));
@@ -100,173 +99,45 @@ struct Implies : MakeExpression {
 template<Expression E1, Expression E2>
 using Equiv = And<Implies<E1, E2>, Implies<E2, E1>>;
 
-struct GenericVariableMarker {};
 
-template<typename T>
-struct MakeVariable : GenericVariableMarker {};
-
-template<typename V>
-concept GenericVar = std::is_base_of_v<GenericVariableMarker, V> && requires {
-    typename V::type;
-};
-
-#define MAKE_VARIABLE(T) using type = T
-
-template<typename T, char _x>
-struct FV : MakeVariable<T> {
-    MAKE_VARIABLE(T);
-    static constexpr char x = _x;
-};
-
-
-template<typename V, typename T>
-concept Variable = std::is_base_of_v<MakeVariable<T>, V> && std::same_as<typename V::type, T>;
-
-template<typename T>
-concept ExpOrVar = GenericVar<T> || Expression<T>;
-
-template<typename T, char x, Expression E>
-struct ForAll;
-
-template<typename T, char x, Expression E>
-struct Exists;
-
-template<GenericVar, ExpOrVar>
-struct FreeInImpl {
-    static constexpr bool value = false;
-};
-
-template<typename T, char x>
-struct FreeInImpl<FV<T, x>, FV<T, x>> {
-    static constexpr bool value = true;
-};
-
-template<typename T, char x, template<typename...> class Comb, ExpOrVar... Es>
-    requires(Expression<Comb<Es...>>)
-struct FreeInImpl<FV<T, x>, Comb<Es...>> {
-    static constexpr bool value = (FreeInImpl<FV<T, x>, Es>::value || ...);
-};
-
-template<typename T, char x, template<typename...> class Func, GenericVar... Vs>
-    requires(GenericVar<Func<Vs...>>)
-struct FreeInImpl<FV<T, x>, Func<Vs...>> {
-    static constexpr bool value = (FreeInImpl<FV<T, x>, Vs>::value || ...);
-};
-
-template<typename T, char x, template<typename, char, typename> class Quant, typename TT, char xx, Expression E>
-    requires((!std::same_as<T, TT> || x != xx) && Expression<Quant<TT, xx, E>>)
-struct FreeInImpl<FV<T, x>, Quant<TT, xx, E>> {
-    static constexpr bool value = FreeInImpl<FV<T, x>, E>::value;
-};
-
-template<GenericVar V, ExpOrVar E>
-inline constexpr bool FreeIn = FreeInImpl<V, E>::value;
-
-template<GenericVar, ExpOrVar>
-struct BoundInImpl {
-    static constexpr bool value = false;
-};
-
-template<typename T, char x, template<typename, char, typename> class Quant, Expression E>
-    requires(Expression<Quant<T, x, E>>)
-struct BoundInImpl<FV<T, x>, Quant<T, x, E>> {
-    static constexpr bool value = FreeIn<FV<T, x>, E>;
-};
-
-template<typename T, char x, template<typename...> class Comb, ExpOrVar... Es>
-    requires(Expression<Comb<Es...>>)
-struct BoundInImpl<FV<T, x>, Comb<Es...>> {
-    static constexpr bool value = (BoundInImpl<FV<T, x>, Es>::value || ...);
-};
-
-template<typename T, char x, template<typename...> class Func, GenericVar... Vs>
-    requires(GenericVar<Func<Vs...>>)
-struct BoundInImpl<FV<T, x>, Func<Vs...>> {
-    static constexpr bool value = (BoundInImpl<FV<T, x>, Vs>::value || ...);
-};
-
-template<typename T, char x, template<typename, char, typename> class Quant, typename TT, char xx, Expression E>
-    requires((!std::same_as<T, TT> || x != xx) && Expression<Quant<TT, xx, E>>)
-struct BoundInImpl<FV<T, x>, Quant<TT, xx, E>> {
-    static constexpr bool value = BoundInImpl<FV<T, x>, E>::value;
-};
-
-template<GenericVar V,  ExpOrVar E>
-inline constexpr bool BoundIn = BoundInImpl<V, E>::value;
-
-template<typename T, char x, ExpOrVar E, Variable<T> X>
-    requires(!BoundIn<X, E>)
-struct SubstImpl {
-    using type = E;
-};
-
-template<typename T, char x, Variable<T> X>
-struct SubstImpl<T, x, FV<T, x>, X> {
-    using type = X;
-};
-
-template<typename T, char x, template<typename...> class Comb, ExpOrVar... Es, Variable<T> X>
-    requires(Expression<Comb<Es...>>)
-struct SubstImpl<T, x, Comb<Es...>, X> {
-    using type = Comb<typename SubstImpl<T, x, Es, X>::type...>;
-};
-
-template<typename T, char x, template<typename...> class Func, GenericVar... Vs, Variable<T> X>
-    requires(GenericVar<Func<Vs...>>)
-struct SubstImpl<T, x, Func<Vs...>, X> {
-    using type = Func<typename SubstImpl<T, x, Vs, X>::type...>;
-};
-
-template<typename T, char x, typename TT, char xx, Expression E, Variable<T> X>
-    requires((!std::same_as<T, TT> || x != xx) && !std::same_as<X, FV<TT, xx>>)
-struct SubstImpl<T, x, ForAll<TT, xx, E>, X> {
-    using type = ForAll<TT, xx, typename SubstImpl<T, x, E, X>::type>;
-};
-
-template<typename T, char x, typename TT, char xx, Expression E, Variable<T> X>
-    requires((!std::same_as<T, TT> || x != xx)  && !std::same_as<X, FV<TT, xx>>)
-struct SubstImpl<T, x, Exists<TT, xx, E>, X> {
-    using type = Exists<TT, xx, typename SubstImpl<T, x, E, X>::type>;
-};
-
-template<Expression E, typename T, char x, Variable<T> X>
-    requires(!BoundIn<X, E>)
-using Subst = SubstImpl<T, x, E, X>::type;
-
-template<typename T, char x, Expression E>
+template<typename T, fv_tag_t x, Expression E>
 struct ForAll : MakeExpression {
-    MAKE_EXPRESSION();
-    template<char y> requires (x != y)
+    using Self = ForAll<T, x, E>;
+    MAKE_EXPRESSION(Self);
+    template<fv_tag_t y> requires (x != y)
     constexpr ForAll(ForAll<T, y, Subst<E, T, x, FV<T, y>>>);
     template<Expression... Context> requires(!FreeIn<FV<T, x>, Context> && ...)
     constexpr ForAll(deriv<E, Context...>, Context...) __attribute__ ((const));
     template<Variable<T> X>
     constexpr Subst<E, T, x, X> elim() const __attribute__ ((const));
-    template<char y>
+    template<fv_tag_t y>
     constexpr ForAll<T, y, Subst<E, T, x, FV<T, y>>> rename() const __attribute__ ((const));
 };
 
-template<typename T, char x, Expression E>
+template<typename T, fv_tag_t x, Expression E>
 struct Exists : MakeExpression {
-    MAKE_EXPRESSION();
+    using Self = Exists<T, x, E>;
+    MAKE_EXPRESSION(Self);
     template<Variable<T> X>
     constexpr Exists(Subst<E, T, x, X>, X) __attribute__ ((const));
     template<Expression Consequence, Expression... Context>
         requires(!FreeIn<FV<T, x>, Consequence> && (!FreeIn<FV<T, x>, Context> && ...))
     constexpr Consequence elim(deriv<Consequence, E, Context...>, Context...) const __attribute__((const));
-    template<char y>
+    template<fv_tag_t y>
     constexpr Exists<T, y, Subst<E, T, x, FV<T, y>>> rename() const __attribute__((const));
 };
 
 template<GenericVar X, GenericVar Y>
 struct Equals : MakeExpression {
-    MAKE_EXPRESSION();
+    using Self = Equals<X, Y>;
+    MAKE_EXPRESSION(Self);
     Equals() = delete;
 };
 
 template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
 struct Equals<X, Y> : MakeExpression {
-    MAKE_EXPRESSION();
+    using Self = Equals<X, Y>;
+    MAKE_EXPRESSION(Self);
     Equals() requires std::same_as<X, Y> __attribute__ ((const));
     Equals(const Equals<Y, X>&) __attribute__ ((const));
     template<Variable<int> Z>
@@ -383,7 +254,7 @@ struct Axioms {
         >>
         multiplication_recursion;
 
-    template<char x, Expression E>
+    template<fv_tag_t x, Expression E>
         requires(FreeIn<FV<int, x>, E>)
     static const inline
         Implies<
@@ -398,3 +269,7 @@ struct Axioms {
         induction;
 
 };
+
+#ifndef NOT_NAMESPACED
+} // namespace logic
+#endif

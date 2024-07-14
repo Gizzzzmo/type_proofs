@@ -2,8 +2,7 @@
 
 Every type that matches the `Expression` concept can be interpreted as a logical statement and to produce an object of that type is to prove that statement.
 To prevent inconsistencies:
-- functions may not use `Expression` type objects from global scope *except for* the static expression values in the `Axioms` class
-- lambdas used in proofs must not capture variables (these first two rules are to ensure "freshness" of variables in universal quantifier introduction, and existential quantifier elimination)
+- lambdas used in proofs must not capture variables (this is to ensure "freshness" of variables in universal quantifier introduction, and existential quantifier elimination)
 - reinterpret casts, C style casts of expressions, and generally pointers to expressions are forbidden
 - extern declarations of expressions are forbidden, since, at compile time, there is no way to check whether the object was actually constructed. The linker does not work as a check for this as none of the types store any run time values, so the compiler doesn't actually generate any loads or stores for these objects.
 - there might be further problems that I haven't thought about
