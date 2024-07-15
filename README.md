@@ -24,14 +24,6 @@ Will probably not work with control flow constructs, but should be thought about
 
 ## Todo
 
-### Proper Substitution restriction
-
-It should not be possible to substitute a variable x if x contains a free variable, that is bound somewhere in the expression.
-Currently the check is only superficial.
-E.g. trying to substitute `FV<int, 'x'>` for `FV<int, 'y'>` into `ForAll<int, 'x', Equals<FV<int, 'x'>, FV<int, 'y'>>>` will fail as it should.
-Substituting `Succ<FV<int, 'x'>>` instead however will work.
-
-
 ### Generalized Modus Ponens
 
 Understand and implement GMP for Implication construction.
