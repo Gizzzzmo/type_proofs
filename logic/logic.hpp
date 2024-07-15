@@ -110,7 +110,7 @@ struct ForAll : MakeExpression {
     constexpr ForAll(deriv<E, Context...>, Context...) __attribute__ ((const));
     template<Variable<T> X>
     constexpr Subst<E, T, x, X> elim() const __attribute__ ((const));
-    template<fv_tag_t y>
+    template<fv_tag_t y> requires(!FreeIn<FV<T, y>, E>)
     constexpr ForAll<T, y, Subst<E, T, x, FV<T, y>>> rename() const __attribute__ ((const));
 };
 
@@ -123,7 +123,7 @@ struct Exists : MakeExpression {
     template<Expression Consequence, Expression... Context>
         requires(!FreeIn<FV<T, x>, Consequence> && (!FreeIn<FV<T, x>, Context> && ...))
     constexpr Consequence elim(deriv<Consequence, E, Context...>, Context...) const __attribute__((const));
-    template<fv_tag_t y>
+    template<fv_tag_t y> requires(!FreeIn<FV<T, y>, E>)
     constexpr Exists<T, y, Subst<E, T, x, FV<T, y>>> rename() const __attribute__((const));
 };
 
