@@ -202,12 +202,36 @@ struct EqSubstImpl<E, Eq, Eqs...> {
     using type = typename EqSubstImpl<typename EqSubstImpl<E, Eq>::type, Eqs...>::type;
 };
 
+template<GenericVar X, GenericVar Y, GenericVar Z>
+    requires(std::same_as<typename X::type, typename Y::type>)
+struct EqSubstImpl<Z, Equals<X, Y>> {
+    using type = Z;
+};
+
 template<GenericVar V1, GenericVar V2>
     requires(std::same_as<typename V1::type, typename V2::type>)
 struct EqSubstImpl<V1, Equals<V1, V2>> {
     using type = V2; 
 };
 
+template<template<typename...> class Comb, ExpOrVar... Es, GenericVar X, GenericVar Y>
+    requires(Expression<Comb<Es...>> && std::same_as<typename X::type, typename Y::type>)
+struct EqSubstImpl<Comb<Es...>, Equals<X, Y>> {
+    using type = Comb<typename EqSubstImpl<Es, Equals<X, Y>>::type...>;
+};
+
+template<template<typename...> class Func, GenericVar... Vs, GenericVar X, GenericVar Y>
+    requires(
+        GenericVar<Func<Vs...>> &&
+        std::same_as<typename X::type, typename Y::type> &&
+        !std::same_as<Func<Vs...>, X>
+    )
+struct EqSubstImpl<Func<Vs...>, Equals<X, Y>> {
+    using type = Func<typename EqSubstImpl<Vs, Equals<X, Y>>::type...>;
+};
+
+template<ExpOrVar E, Expression... Equalities>
+using EqSubst = typename EqSubstImpl<E, Equalities...>::type;
 
 
 #ifndef NOT_NAMESPACED

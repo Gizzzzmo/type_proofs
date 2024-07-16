@@ -1,4 +1,6 @@
+
 #define NOT_NAMESPACED
+#include "logic/algo.hpp"
 #include "logic/logic.hpp"
 
 using namespace logic;
@@ -164,19 +166,22 @@ test_induction = [] () {
     return Axioms::induction<'x', to_prove>.elim(combine);
 };
 
-//using One = Succ<Zero>;
-//using Two = Succ<One>;
-//using Three = Succ<Two>;
-//deriv<
-//    Implies<
-//        Equals<y, Two>,
-//        Equals<Plus<x, y>, Three> 
-//    >,
-//    Equals<x, One>
-//> cp =
-//[](Equals<x, One> exp) {
-//    deriv<Equals<Plus<x, y>, Three>, Equals<y, Two>, Equals<x, One>> d =
-//    [](Equals<y, Two> y_is_two, Equals<x, One> x_is_one) {
-//        Equals<P>
-//    };
-//};
+using One = N<1>;
+using Two = N<2>;
+using Three = N<3>;
+
+deriv<
+    Implies<Equals<y, Two>, Equals<Plus<x, y>, Three>>,
+    Equals<x, One>
+> cp =
+[](Equals<x, One> exp) {
+    deriv<Equals<Plus<x, y>, Three>, Equals<y, Two>, Equals<x, One>> d =
+    [](Equals<y, Two> y_is_two, Equals<x, One> x_is_one) {
+        Equals<Plus<x, y>, Plus<x, y>> refl;
+        auto add = Axioms::primitive_mapping_plus<1, 2>;
+        auto sub = Axioms::from_subst<Equals<Plus<x, y>, Three>>(refl, y_is_two, x_is_one, add);
+        return sub;
+    };
+    Implies<Equals<y, Two>, Equals<Plus<x, y>, Three>> impl(d, exp);
+    return impl;
+};

@@ -6,6 +6,7 @@ To prevent inconsistencies:
 - reinterpret casts, C style casts of expressions, and generally pointers to expressions are forbidden
 - extern declarations of expressions are forbidden, since, at compile time, there is no way to check whether the object was actually constructed. The linker does not work as a check for this as none of the types store any run time values, so the compiler doesn't actually generate any loads or stores for these objects.
 - there might be further problems that I haven't thought about
+
 Should investigate whether these rules can easily checked with some custom clang-tidy rules.
 
 ## Goals
@@ -24,8 +25,9 @@ Will probably not work with control flow constructs, but should be thought about
 
 ## Todo
 
-### Generalized Modus Ponens
+### Finish implementing EqSubst
+Needs to be extended to work for quantifiers
 
-Understand and implement GMP for Implication construction.
-Currently the fundamental logical calculus is incomplete, due to an inability to generate objects of substitutions.
-For example it is not possible right now to proof things like `x = 1 and y = 2 implies x + y = 3`.
+### Improve syntax
+
+In particular substitution could probably be implemented with a constructor in MAKE_EXPRESSION macro.

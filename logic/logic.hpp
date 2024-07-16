@@ -25,7 +25,8 @@ struct Axioms;
 #define MAKE_EXPRESSION(T)\
 using MakeExpression::MakeExpression;\
 friend class Axioms;\
-friend class MakeExpression;\
+friend class MakeExpression;
+
 
 struct GenericVariableMarker {};
 
@@ -59,7 +60,7 @@ struct False : MakeExpression {
 
 template<Expression E>
 struct Not : MakeExpression {
-    MAKE_EXPRESSION(Not<E>);
+    MAKE_EXPRESSION(Not);
     constexpr Not(Implies<E, False>) __attribute__((const));
     template<Expression NegE> requires std::same_as<E, Not<NegE>>
     constexpr NegE elim() const __attribute__((const));
@@ -68,7 +69,7 @@ struct Not : MakeExpression {
 template<Expression E1, Expression E2>
 struct And : MakeExpression {
     using Self = And<E1, E2>;
-    MAKE_EXPRESSION(Self);
+    MAKE_EXPRESSION(And);
     constexpr And(E1, E2) __attribute__((const));
     constexpr E1 left_elim() const __attribute__((const));
     constexpr E2 right_elim() const __attribute__((const));
@@ -77,7 +78,7 @@ struct And : MakeExpression {
 template<Expression E1, Expression E2>
 struct Or : MakeExpression {
     using Self = Or<E1, E2>;
-    MAKE_EXPRESSION(Self);
+    MAKE_EXPRESSION(Or);
     constexpr Or(E1) __attribute__((const));
     constexpr Or(E2) requires (!std::same_as<E1, E2>) __attribute__((const));
     template<Expression Consequence>
@@ -90,7 +91,7 @@ using deriv = std::function<Consequence(Assumptions...)>;
 template<Expression Assumption, Expression Consequence>
 struct Implies : MakeExpression {
     using Self = Implies<Assumption, Consequence>;
-    MAKE_EXPRESSION(Self);
+    MAKE_EXPRESSION(Implies);
     template<Expression... Context>
     constexpr Implies(deriv<Consequence, Assumption, Context...>, Context...) __attribute__((const));
     constexpr Consequence elim(Assumption) const __attribute__((const));
@@ -103,7 +104,7 @@ using Equiv = And<Implies<E1, E2>, Implies<E2, E1>>;
 template<typename T, fv_tag_t x, Expression E>
 struct ForAll : MakeExpression {
     using Self = ForAll<T, x, E>;
-    MAKE_EXPRESSION(Self);
+    MAKE_EXPRESSION(ForAll);
     template<fv_tag_t y> requires (x != y)
     constexpr ForAll(ForAll<T, y, Subst<E, T, x, FV<T, y>>>);
     template<Expression... Context> requires(!FreeIn<FV<T, x>, Context> && ...)
@@ -117,7 +118,7 @@ struct ForAll : MakeExpression {
 template<typename T, fv_tag_t x, Expression E>
 struct Exists : MakeExpression {
     using Self = Exists<T, x, E>;
-    MAKE_EXPRESSION(Self);
+    MAKE_EXPRESSION(Exists);
     template<Variable<T> X>
     constexpr Exists(Subst<E, T, x, X>, X) __attribute__ ((const));
     template<Expression Consequence, Expression... Context>
@@ -130,14 +131,14 @@ struct Exists : MakeExpression {
 template<GenericVar X, GenericVar Y>
 struct Equals : MakeExpression {
     using Self = Equals<X, Y>;
-    MAKE_EXPRESSION(Self);
+    MAKE_EXPRESSION(Equals);
     Equals() = delete;
 };
 
 template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
 struct Equals<X, Y> : MakeExpression {
     using Self = Equals<X, Y>;
-    MAKE_EXPRESSION(Self);
+    MAKE_EXPRESSION(Equals);
     Equals() requires std::same_as<X, Y> __attribute__ ((const));
     Equals(const Equals<Y, X>&) __attribute__ ((const));
     template<Variable<int> Z>
@@ -188,6 +189,10 @@ struct N : MakeVariable<int> {
 // axioms
 
 struct Axioms {
+    template<Expression E1, Expression E2, Expression... Equalities>
+        requires(std::same_as<EqSubst<E1, Equalities...>, EqSubst<E2, Equalities...>>)
+    static constexpr E1 from_subst(E2, Equalities...);
+
     using x = FV<int, 'x'>;
     using y = FV<int, 'y'>;
     static const inline Equals<N<0>, Zero>
