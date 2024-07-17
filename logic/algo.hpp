@@ -215,7 +215,10 @@ struct EqSubstImpl<V1, Equals<V1, V2>> {
 };
 
 template<template<typename...> class Comb, ExpOrVar... Es, GenericVar X, GenericVar Y>
-    requires(Expression<Comb<Es...>> && std::same_as<typename X::type, typename Y::type>)
+    requires(
+        Expression<Comb<Es...>> &&
+        std::same_as<typename X::type, typename Y::type>
+    )
 struct EqSubstImpl<Comb<Es...>, Equals<X, Y>> {
     using type = Comb<typename EqSubstImpl<Es, Equals<X, Y>>::type...>;
 };
@@ -228,6 +231,18 @@ template<template<typename...> class Func, GenericVar... Vs, GenericVar X, Gener
     )
 struct EqSubstImpl<Func<Vs...>, Equals<X, Y>> {
     using type = Func<typename EqSubstImpl<Vs, Equals<X, Y>>::type...>;
+};
+
+template<
+    typename T, fv_tag_t x, template<typename, fv_tag_t, typename> class Quant, 
+    Expression E, GenericVar X, GenericVar Y
+> requires(
+    Expression<Quant<T, x, E>> &&
+    !std::same_as<Quant<T, x, E>, X> &&
+    !IsIn<FV<T, x>, Concat<FVsIn<Y>, FVsIn<X>>>
+)
+struct EqSubstImpl<Quant<T, x, E>, Equals<X, Y>> {
+    using type = Quant<T, x, typename EqSubstImpl<E, Equals<X, Y>>::type>;
 };
 
 template<ExpOrVar E, Expression... Equalities>
