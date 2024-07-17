@@ -1,7 +1,10 @@
 #pragma once
 
 #include "empty_types.hpp"
+#include <algorithm>
 #include <concepts>
+#include <limits>
+#include <utility>
 
 namespace logic {
 
@@ -25,6 +28,21 @@ struct IsInImpl<T, tmpl<Us...>> {
 template<typename T, typename List>
 concept IsIn = IsInImpl<T, List>::value;
 
+
+template<typename List1, typename List2>
+struct IsSubsetImpl {
+    static constexpr bool value = false;
+};
+
+template<
+    template<typename...> class tmpl1,
+    typename... Ts, typename List2
+> struct IsSubsetImpl<tmpl1<Ts...>, List2> {
+    static constexpr bool value = (IsIn<Ts, List2> && ...); 
+};
+
+template<typename List1, typename List2>
+concept IsSubset = IsSubsetImpl<List1, List2>::value;
 
 template<typename... Ts>
 struct ConcatImpl {};
@@ -247,6 +265,127 @@ struct EqSubstImpl<Quant<T, x, E>, Equals<X, Y>> {
 
 template<ExpOrVar E, Expression... Equalities>
 using EqSubst = typename EqSubstImpl<E, Equalities...>::type;
+
+template<ExpOrVar E, typename EqualityList>
+struct EqSubstListImpl {
+
+};
+
+template<ExpOrVar E, Expression... Equalities>
+struct EqSubstListImpl<E, TypeList<Equalities...>> {
+    using type = EqSubst<E, Equalities...>;
+};
+
+template<ExpOrVar E, typename EqualityList>
+using EqSubstList = typename EqSubstListImpl<E, EqualityList>::type;
+
+
+template<typename List, typename Predicate>
+struct FilterImpl {};
+
+template<template<typename...> class tmpl, typename Predicate>
+struct FilterImpl<tmpl<>, Predicate> {
+    using type = tmpl<>;
+};
+
+template<template<typename...> class tmpl, typename Predicate, typename Head, typename... Tail>
+    requires (Predicate::template value<Head>)
+struct FilterImpl<tmpl<Head, Tail...>, Predicate> {
+    using type = Concat<tmpl<Head>, typename FilterImpl<tmpl<Tail...>, Predicate>::type>;
+};
+
+template<template<typename...> class tmpl, typename Predicate, typename Head, typename... Tail>
+    requires (!Predicate::template value<Head>)
+struct FilterImpl<tmpl<Head, Tail...>, Predicate> {
+    using type = typename FilterImpl<tmpl<Tail...>, Predicate>::type;
+};
+
+template<typename List, typename Predicate>
+using Filter = typename FilterImpl<List, Predicate>::type;
+
+template<std::integral T, T... xs>
+    requires (sizeof...(xs) < std::numeric_limits<T>::max() - std::numeric_limits<T>::min())
+    // could be relaxed to sizeof unique elements in xs
+constexpr T unused_num() {
+    int arr[] = {xs...};
+
+    std::sort(arr, &arr[sizeof...(xs)]);
+
+    T n = std::numeric_limits<T>::min();
+    for (size_t i = 0; i < sizeof...(xs); i++) {
+        if (arr[i] > n)
+            break;
+        n++;
+    }
+    
+    return n;
+}
+
+template<typename T>
+struct FreeVarP {
+    template<typename V>
+    static constexpr bool value = FreeVar<V> && std::same_as<typename V::type, T>;
+};
+
+template<typename List>
+struct UnusedFVTagImpl {};
+
+template<template<typename...> class tmpl, FreeVar... FVs>
+struct UnusedFVTagImpl<tmpl<FVs...>> {
+    static constexpr fv_tag_t value = unused_num<fv_tag_t, FVs::tag...>();
+};
+
+template<typename List>
+inline static constexpr fv_tag_t UnusedFVTag = UnusedFVTagImpl<List>::value;
+
+template<typename T, typename List>
+struct UnusedFVImpl {
+    using type = FV<T, UnusedFVTag<Filter<List, FreeVarP<T>>>>;
+};
+
+template<typename T, typename List>
+using UnusedFV = typename UnusedFVImpl<T, List>::type;
+
+template<
+    typename List1, typename List2,
+    template<typename, typename> class inner = std::pair,
+    template<typename...> class outer = TypeList
+> struct ZipImpl {};
+
+
+template<
+    template<typename...> class tmpl1, template<typename...> class tmpl2,
+    template<typename, typename> class inner, template<typename...> class outer,
+    typename... Leftover
+> struct ZipImpl<tmpl1<Leftover...>, tmpl2<>, inner, outer> {
+    using type = outer<>;  
+};
+
+template<
+    template<typename...> class tmpl1, template<typename...> class tmpl2,
+    template<typename, typename> class inner, template<typename...> class outer,
+    typename... Leftover
+> requires(sizeof...(Leftover) != 0)
+struct ZipImpl<tmpl1<>, tmpl2<Leftover...>, inner, outer> {
+    using type = outer<>; 
+};
+
+template<
+    template<typename...> class tmpl1, typename Head1, typename... Tail1,
+    template<typename...> class tmpl2, typename Head2, typename... Tail2,
+    template<typename, typename> class inner, template<typename...> class outer 
+> struct ZipImpl<tmpl1<Head1, Tail1...>, tmpl2<Head2, Tail2...>, inner, outer> {
+    using type = Concat<outer<inner<Head1, Head2>>, typename ZipImpl<tmpl1<Tail1...>, tmpl2<Tail2...>>::type>;
+};
+
+
+template<
+    typename List1, typename List2,
+    template<typename, typename> class inner = std::pair,
+    template<typename...> class outer = TypeList
+> using Zip = typename ZipImpl<List1, List2, inner, outer>::type;
+
+
 
 
 #ifndef NOT_NAMESPACED
