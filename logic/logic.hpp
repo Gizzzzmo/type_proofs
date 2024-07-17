@@ -35,10 +35,12 @@ struct MakeVariable : GenericVariableMarker {};
 
 #define MAKE_VARIABLE(T) using type = T
 
-template<typename T, fv_tag_t _x>
-struct FV : MakeVariable<T> {
+struct FVMarker {};
+
+template<typename T, fv_tag_t _tag>
+struct FV : MakeVariable<T>, FVMarker {
     MAKE_VARIABLE(T);
-    static constexpr fv_tag_t x = _x;
+    static constexpr fv_tag_t tag = _tag;
 };
 
 struct True : MakeExpression {
@@ -196,19 +198,19 @@ struct Axioms {
     using x = FV<int, 'x'>;
     using y = FV<int, 'y'>;
     static const inline Equals<N<0>, Zero>
-        primitive_mapping_base;
+        primitive_base;
 
     template<int _x>
     static const inline Equals<Succ<N<_x>>, N<_x + 1>>
-        primitive_mapping_succ;
+        primitive_succ;
 
     template<int _x, int _y>
     static const inline Equals<Plus<N<_x>, N<_y>>, N<_x + _y>>
-        primitive_mapping_plus;
+        primitive_plus;
 
     template<int _x, int _y>
     static const inline Equals<Times<N<_x>, N<_y>>, N<_x * _y>>
-        primitive_mapping_times;
+        primitive_times;
 
     static const inline Not<Exists<int, 'x', Equals<Succ<x>, Zero>>>
         zero_is_no_successor;

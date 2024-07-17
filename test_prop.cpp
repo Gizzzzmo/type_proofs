@@ -178,7 +178,7 @@ deriv<
     deriv<Equals<Plus<x, y>, Three>, Equals<y, Two>, Equals<x, One>> d =
     [](Equals<y, Two> y_is_two, Equals<x, One> x_is_one) {
         Equals<Plus<x, y>, Plus<x, y>> refl;
-        auto add = Axioms::primitive_mapping_plus<1, 2>;
+        auto add = Axioms::primitive_plus<1, 2>;
         auto sub = Axioms::from_subst<Equals<Plus<x, y>, Three>>(refl, y_is_two, x_is_one, add);
         return sub;
     };

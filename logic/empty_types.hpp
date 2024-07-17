@@ -17,6 +17,7 @@ using fv_tag_t = char;
 struct MakeExpression;
 struct GenericVariableMarker;
 template<typename T> struct MakeVariable;
+struct FVMarker;
 
 template<typename T>
 concept Expression = std::is_base_of_v<MakeExpression, T> && sizeof(T) == 1;
@@ -28,6 +29,14 @@ concept GenericVar = std::is_base_of_v<GenericVariableMarker, V> && requires {
 
 template<typename V, typename T>
 concept Variable = std::is_base_of_v<MakeVariable<T>, V> && std::same_as<typename V::type, T>;
+
+template<fv_tag_t _tag>
+struct Checker { static constexpr fv_tag_t tag = _tag; };
+
+template<typename T>
+concept FreeVar = std::is_base_of_v<FVMarker, T> && GenericVar<T> && requires() {
+    {Checker<T::tag>::tag} -> std::same_as<const fv_tag_t&>;
+};
 
 template<typename T>
 concept ExpOrVar = GenericVar<T> || Expression<T>;
