@@ -4,6 +4,8 @@
 #include "algo.hpp"
 #include "logic.hpp"
 
+#include <cassert>
+
 namespace logic {
 
 #ifdef NOT_NAMESPACED
@@ -38,7 +40,7 @@ class Context {
         mutable bool active = true;
         template<typename T, fv_tag_t x, typename... _FVs>
         friend class Tagger;
-        template<typename, typename, typename>
+        template<typename, typename, typename, typename>
         friend class FnDispatcher;
 };
 
@@ -49,7 +51,6 @@ class PackagedContext { PackagedContext() = delete;};
 template<FreeVar... PackagedFVs, FreeVar... AllFVs, Expression... Es>
     requires (
         IsSubset<TypeList<PackagedFVs...>, TypeList<AllFVs...>> &&
-        // IsSubset<TypeList<AllFVs...>, Concat<FVsIn<Es>...>> &&
         IsSubset<Concat<FVsIn<Es>...>, TypeList<AllFVs...>>
     )
 struct  PackagedContext<Context<AllFVs...>, TypeList<PackagedFVs...>, Es...> {
@@ -61,7 +62,7 @@ struct  PackagedContext<Context<AllFVs...>, TypeList<PackagedFVs...>, Es...> {
     Context<AllFVs...> context; 
     const std::tuple<TaggedVal<PackagedFVs>...> values;
     const std::tuple<Es...> assumptions;
-    template<typename, typename, typename>
+    template<typename, typename, typename, typename>
     friend class FnDispatcher;
 };
 
@@ -77,21 +78,21 @@ struct ResultContextImpl<
 };
 
 
-//template<typename Inputs, typename Assumptions, typename Output>
-//struct FnDispatcher {};
-
-
-template<FreeVar... ExFVs, Expression... AssEs, FreeVar... ProdFVs, Expression... ProdEs, typename... AllFVs>
-    requires(IsSubset<Concat<FVsIn<AssEs>...>, TypeList<ExFVs...>>)
+template<
+    FreeVar... ExFVs, Expression... AssEs, FreeVar... ProdFVs, Expression... ProdEs,
+    typename... AllFVs, Function<
+        PackagedContext<Context<AllFVs...>, TypeList<ProdFVs...>, ProdEs...>,
+        Context<ExFVs...>, TaggedVal<ExFVs>..., AssEs... 
+    > Fn
+> requires(IsSubset<Concat<FVsIn<AssEs>...>, TypeList<ExFVs...>>)
 class FnDispatcher<
     Context<ExFVs...>, TypeList<AssEs...>,
-    PackagedContext<Context<AllFVs...>, TypeList<ProdFVs...>, ProdEs...>
+    PackagedContext<Context<AllFVs...>, TypeList<ProdFVs...>, ProdEs...>, Fn
 > {
     public:
         using OutPackage = PackagedContext<Context<AllFVs...>, TypeList<ProdFVs...>, ProdEs...>;
 
-        template<Function<OutPackage, Context<ExFVs...>, TaggedVal<ExFVs>..., AssEs...> Fn>
-        FnDispatcher(Fn fn) : fn(fn) {}
+        constexpr FnDispatcher(Fn fn) : fn(fn) {}
 
         template<typename Cont, typename... InTaggedVals> requires (sizeof...(InTaggedVals) == sizeof...(ExFVs))
         auto operator()(
@@ -101,44 +102,22 @@ class FnDispatcher<
                 TypeList<typename InTaggedVals::TagVar...>, Equals>
             >...,
             InTaggedVals... inputs
-        ) {
+        ) const {
             // can construct fn's inputs from nothing
             Context<ExFVs...> c_in;
-            OutPackage result = fn(std::move(c_in), TaggedVal<ExFVs>(inputs)..., AssEs()...);
+            auto _fn = static_cast<
+                std::function<OutPackage(Context<ExFVs...>, TaggedVal<ExFVs>..., AssEs...)>
+            >(fn);
+
+            OutPackage result = _fn(std::move(c_in), TaggedVal<ExFVs>(inputs)..., AssEs()...);
 
             // for each free variable in ProdFVs, that is not in ExFVs, need to add one to output of final context
             
         }
     private:
-        const std::function<OutPackage(Context<ExFVs...>, TaggedVal<ExFVs>..., AssEs...)> fn;
+        const Fn fn;
 
 };
-
-
-
-//template<FreeVar... ExFVs, Expression... AssEs, FreeVar... ProdFVs, Expression... ProdEs, typename... AllFVs>
-//    requires(IsSubset<Concat<FVsIn<AssEs>...>, TypeList<ExFVs...>>)
-//struct FnDispatcher<
-//    Context<ExFVs...>, TypeList<AssEs...>,
-//    PackagedContext<Context<AllFVs...>, TypeList<ProdFVs...>, ProdEs...>
-//> {
-//    using OutPackage = PackagedContext<Context<AllFVs...>, TypeList<ProdFVs...>, ProdEs...>;
-
-//    template<
-//        typename Cont, FreeVar... InFVs,
-//        Function<OutPackage, Context<ExFVs...>, TaggedVal<ExFVs>..., AssEs...> Fn
-//    > requires (sizeof...(InFVs) == sizeof...(ExFVs))
-//    static constexpr auto dispatch(
-//        Fn fn, Cont&& c, TaggedVal<InFVs>&&... inputs, 
-//        EqSubst<AssEs, Zip<TypeList<ExFVs...>, TypeList<InFVs...>, Equals>>... ass
-//    ) {
-//        auto resolved_fn = 
-//            static_cast<std::function<
-//                OutPackage(Context<ExFVs...>, TaggedVal<ExFVs>..., AssEs...)
-//            >>(fn);
-//        return resolved_fn(std::forward(c), std::forward(inputs...), ass...);
-//    }
-//};
 
 
 template<typename T, fv_tag_t x, FreeVar... FVs> requires (!IsIn<FV<T, x>, TypeList<FVs...>>)

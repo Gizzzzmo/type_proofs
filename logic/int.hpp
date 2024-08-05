@@ -3,11 +3,6 @@
 #include "logic.hpp"
 #include "tagging.hpp"
 
-#include <cassert>
-#include <concepts>
-#include <tuple>
-#include <type_traits>
-#include <utility>
 
 namespace logic {
 
@@ -23,7 +18,7 @@ class Bool {
         friend class Int;
         template<Expression>
         friend class Bool;
-        template<typename, typename>
+        template<typename, typename, typename, typename>
         friend class FnDispatcher;
     public:
         constexpr Bool(E) : x(true) {}
@@ -78,7 +73,7 @@ class Int {
         friend class Tagger;
         template<Variable<int> Y>
         friend class Int;
-        template<typename, typename, typename>
+        template<typename, typename, typename, typename>
         friend class FnDispatcher;
     public:
         using TagVar = X;

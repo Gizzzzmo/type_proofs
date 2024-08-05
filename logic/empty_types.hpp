@@ -77,7 +77,7 @@ concept Function = requires(Fn fn) {
 template<typename T, fv_tag_t x, typename... FVs>
 struct Tagger;
 
-template<typename Inputs, typename Assumptions, typename Output>
+template<typename Inputs, typename Assumptions, typename Output, typename Fn>
 struct FnDispatcher;
 
 template<FreeVar... FVs>

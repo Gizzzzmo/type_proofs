@@ -24,7 +24,7 @@ struct Axioms;
 #define MAKE_EXPRESSION(T)\
 friend class Axioms;\
 friend class MakeExpression;\
-template<typename, typename, typename>\
+template<typename, typename, typename, typename>\
 friend class FnDispatcher;
 
 
