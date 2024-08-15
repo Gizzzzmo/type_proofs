@@ -35,7 +35,7 @@ Maybe something like "5 is prime" to start with?
 ### Implement ZFC
 Set theory axioms.
 
-
+### Change int formalization from peano axioms to integer axioms (include negative numbers)
 
 ### Validate soundness of implementation
 
