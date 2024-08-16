@@ -154,8 +154,8 @@ static std::pair<
 
 template<typename Tagged, FreeVar... FVs>
 static constexpr auto create_tagged_split(Context<FVs...>&& c0, Tagged t) { 
-    using WrappedT = Tagged::Wrapped;
-    using Tag = Tagged::TagVar;
+    using WrappedT = typename Tagged::Wrapped;
+    using Tag = typename Tagged::TagVar;
     using MyTagger = Tagger<WrappedT, UnusedFV<WrappedT, TypeList<FVs...>>::tag, FVs...>;
     return std::move(MyTagger::template split<Tag>(std::move(c0), t));
 };

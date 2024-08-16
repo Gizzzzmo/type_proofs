@@ -208,7 +208,7 @@ struct SubstImpl<T, x, Exists<TT, xx, E>, X> {
 
 template<Expression E, typename T, fv_tag_t x, Variable<T> X>
     requires(NoneBoundIn<FVsIn<X>, E>)
-using Subst = SubstImpl<T, x, E, X>::type;
+using Subst = typename SubstImpl<T, x, E, X>::type;
 
 template<ExpOrVar E, Expression... Equalities>
 struct EqSubstImpl {
