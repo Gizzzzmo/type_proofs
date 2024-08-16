@@ -29,11 +29,13 @@ add_test(NAME test_proofs
     COMMAND cmake --build . --target test_prop
 )
 add_test(NAME test_bad_bound_subst1
-    COMMAND ${CMAKE_CURRENT_LIST_DIR}/invert_ret.sh "cmake --build . -- test_bad_bound_subst1"
+    COMMAND cmake --build . --target test_bad_bound_subst1
 )
+set_property(TEST test_bad_bound_subst1 PROPERTY WILL_FAIL TRUE)
 add_test(NAME test_bad_bound_subst2
-    COMMAND ${CMAKE_CURRENT_LIST_DIR}/invert_ret.sh "cmake --build . -- test_bad_bound_subst2"
+    COMMAND cmake --build . -- test_bad_bound_subst2
 )
+set_property(TEST test_bad_bound_subst2 PROPERTY WILL_FAIL TRUE)
 add_test(NAME tag_test
     COMMAND cmake --build . --target tag_test
 )
