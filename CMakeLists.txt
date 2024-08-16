@@ -14,6 +14,7 @@ add_library(test_algo_negative_control EXCLUDE_FROM_ALL subst_test/negative_cont
 add_library(test_bad_bound_subst1 EXCLUDE_FROM_ALL subst_test/negative/bound_subst1.cpp)
 add_library(test_bad_bound_subst2 EXCLUDE_FROM_ALL subst_test/negative/bound_subst2.cpp)
 add_library(tag_test EXCLUDE_FROM_ALL tag_test.cpp)
+add_library(demo_bad_usage EXCLUDE_FROM_ALL demo_bad_usage.cpp)
 
 
 enable_testing()
@@ -35,4 +36,7 @@ add_test(NAME test_bad_bound_subst2
 )
 add_test(NAME tag_test
     COMMAND cmake --build . --target tag_test
+)
+add_test(NAME demo_bad_usage
+    COMMAND cmake --build . --target demo_bad_usage
 )
