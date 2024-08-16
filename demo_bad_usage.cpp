@@ -49,7 +49,7 @@ False lambda_capture_2() {
         deriv<False, Equals<x, Zero>> false_from_x_is_zero =
         [](Equals<x, Zero> x_is_zero) {
             Equals<One, One> refl;
-            Exists<int, 'x', Equals<x, One>> one_exists;
+            Exists<int, 'x', Equals<x, One>> one_exists(refl, One());
 
             deriv<False, Equals<x, One>> problematic_derivation =
             [x_is_zero](Equals<x, One> x_is_one) {
