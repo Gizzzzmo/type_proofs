@@ -55,7 +55,8 @@ template<Expression E1, Expression E2> struct And;
 template<Expression E1, Expression E2> struct Or;
 template<typename T, fv_tag_t x, Expression E> struct ForAll;
 template<typename T, fv_tag_t x, Expression E> struct Exists;
-template<GenericVar X, GenericVar Y> struct Equals;
+template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
+struct Equals;
 
 template<typename T, fv_tag_t _x> struct FV;
 

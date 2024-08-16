@@ -16,7 +16,8 @@ namespace logic {
 struct MakeExpression {
     protected:
         template<Expression E>
-        constexpr E produce() const __attribute__((const));
+        static constexpr E produce() __attribute__((const));
+        friend class Axioms;
 };
 
 struct Axioms;
@@ -69,7 +70,7 @@ struct Not : MakeExpression {
     MAKE_EXPRESSION(Not);
     constexpr Not(False) __attribute__((const));
     constexpr Not(Implies<E, False>) __attribute__((const));
-    template<Expression NegE> requires std::same_as<E, Not<NegE>>
+    template<Expression NegE> requires (std::same_as<E, Not<NegE>>)
     constexpr NegE elim() const __attribute__((const));
     private:
         constexpr Not() __attribute__((const));
@@ -147,42 +148,194 @@ struct Exists : MakeExpression {
         constexpr Exists() __attribute__((const));
 };
 
-template<GenericVar X, GenericVar Y>
-struct Equals : MakeExpression {
-    MAKE_EXPRESSION(Equals);
-    Equals() = delete;
-};
 
 template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
-struct Equals<X, Y> : MakeExpression {
+struct Equals : MakeExpression {
     MAKE_EXPRESSION(Equals);
     constexpr Equals(False) __attribute__((const));
-    constexpr Equals() requires std::same_as<X, Y> __attribute__ ((const));
-    constexpr Equals(const Equals<Y, X>&) __attribute__ ((const));
+    constexpr Equals() requires (std::same_as<X, Y>) __attribute__ ((const));
+    constexpr Equals(Equals<Y, X>) requires(!std::same_as<X, Y>)__attribute__ ((const));
     template<Variable<int> Z>
     constexpr Equals(Equals<X, Z>, Equals<Z, Y>) __attribute__ ((const));
 
-    template<typename, fv_tag_t, typename... FVs>
+    template<typename, fv_tag_t, typename...>
     friend class Tagger;
     private:
         constexpr Equals() __attribute__((const));
 };
 
-constexpr True::True() {};
 
 template<Expression E>
-constexpr E MakeExpression::produce() const {
+constexpr E MakeExpression::produce() {
     return E();
 }
+
+// True Definitions
+constexpr True::True() {}
+
+constexpr True::True(False) {}
+
+
+// False Definitions
+template<Expression E>
+constexpr False::False(E, Not<E>) {}
+
+template<Expression E>
+constexpr False::False(Not<E>, E) {}
+
+template<Expression E>
+constexpr False::False(And<E, Not<E>>) {}
+
+template<Expression E>
+constexpr False::False(And<Not<E>, E>) {}
+
+constexpr False::False() {}
+
+
+// Not Definitions
+template<Expression E>
+constexpr Not<E>::Not(False) {}
+
+template<Expression E>
+constexpr Not<E>::Not(Implies<E, False>) {}
+
+template<Expression E>
+template<Expression NegE> requires (std::same_as<E, Not<NegE>>)
+constexpr NegE Not<E>::elim() const {
+    return produce<NegE>();
+}
+
+template<Expression E>
+constexpr Not<E>::Not() {}
+
+
+// And Definitions
+template<Expression E1, Expression E2>
+constexpr And<E1, E2>::And(False) {}
+
+template<Expression E1, Expression E2>
+constexpr And<E1, E2>::And(E1, E2) {}
+
+template<Expression E1, Expression E2>
+constexpr E1 And<E1, E2>::left_elim() const {
+    return produce<E1>();
+}
+
+template<Expression E1, Expression E2>
+constexpr E2 And<E1, E2>::right_elim() const {
+    return produce<E2>();
+}
+
+template<Expression E1, Expression E2>
+constexpr And<E1, E2>::And() {}
+
+
+// Or Definitions
+template<Expression E1, Expression E2>
+constexpr Or<E1, E2>::Or(False) {}
+
+template<Expression E1, Expression E2>
+constexpr Or<E1, E2>::Or(E1) requires(!std::same_as<E1, False>) {}
+
+template<Expression E1, Expression E2>
+constexpr Or<E1, E2>::Or(E2) requires (!std::same_as<E1, E2> && !std::same_as<E2, False>) {}
 
 template<Expression E1, Expression E2>
 template<Expression Consequence>
 constexpr Consequence Or<E1, E2>::elim(Implies<E1, Consequence>, Implies<E2, Consequence>) const {
-    return produce<Consequence>(); 
+    return produce<Consequence>();
 }
-// todo: add further definitions to allow compilation and linking without optimization
-// (and importantly to make that process be a reliable check,
-// as long as reinterpret casts are forbidden)
+
+template<Expression E1, Expression E2>
+constexpr Or<E1, E2>::Or() {}
+
+
+// Implies Definitions
+template<Expression Assumption, Expression Consequence>
+constexpr Implies<Assumption, Consequence>::Implies(False) {}
+
+template<Expression Assumption, Expression Consequence>
+template<Expression... Context>
+constexpr Implies<Assumption, Consequence>::Implies(deriv<Consequence, Assumption, Context...>, Context...) {}
+
+template<Expression Assumption, Expression Consequence>
+constexpr Consequence Implies<Assumption, Consequence>::elim(Assumption) const {
+    return produce<Consequence>();
+}
+
+template<Expression Assumption, Expression Consequence>
+constexpr Implies<Assumption, Consequence>::Implies() {}
+
+
+// ForAll Definitions
+template<typename T, fv_tag_t x, Expression E>
+constexpr ForAll<T, x, E>::ForAll(False) {};
+
+template<typename T, fv_tag_t x, Expression E>
+template<fv_tag_t y> requires (x != y)
+constexpr ForAll<T, x, E>::ForAll(ForAll<T, y, Subst<E, T, x, FV<T, y>>>) {}
+
+template<typename T, fv_tag_t x, Expression E>
+template<Expression... Context> requires(!FreeIn<FV<T, x>, Context> && ...)
+constexpr ForAll<T, x, E>::ForAll(deriv<E, Context...>, Context...) {}
+
+template<typename T, fv_tag_t x, Expression E>
+template<Variable<T> X>
+constexpr Subst<E, T, x, X> ForAll<T, x, E>::elim() const {
+    return produce<Subst<E, T, x, X>>();
+}
+
+template<typename T, fv_tag_t x, Expression E>
+template<fv_tag_t y> requires(!FreeIn<FV<T, y>, E>)
+constexpr ForAll<T, y, Subst<E, T, x, FV<T, y>>> ForAll<T, x, E>::rename() const {
+    return produce<ForAll<T, y, Subst<E, T, x, FV<T, y>>>>();
+}
+
+template<typename T, fv_tag_t x, Expression E>
+constexpr ForAll<T, x, E>::ForAll() {};
+
+
+// Exists Definitions
+template<typename T, fv_tag_t x, Expression E>
+constexpr Exists<T, x, E>::Exists(False) {}
+
+template<typename T, fv_tag_t x, Expression E>
+template<Variable<T> X>
+constexpr Exists<T, x, E>::Exists(Subst<E, T, x, X>, X) {}
+
+template<typename T, fv_tag_t x, Expression E>
+template<Expression Consequence, Expression... Context>
+    requires(!FreeIn<FV<T, x>, Consequence> && (!FreeIn<FV<T, x>, Context> && ...))
+constexpr Consequence Exists<T, x, E>::elim(deriv<Consequence, E, Context...>, Context...) const {
+    return produce<Consequence>();
+}
+
+template<typename T, fv_tag_t x, Expression E>
+template<fv_tag_t y> requires(!FreeIn<FV<T, y>, E>)
+constexpr Exists<T, y, Subst<E, T, x, FV<T, y>>> Exists<T, x, E>::rename() const {
+    return produce<Exists<T, y, Subst<E, T, x, FV<T, y>>>>();
+}
+
+template<typename T, fv_tag_t x, Expression E>
+constexpr Exists<T, x, E>::Exists() {};
+
+
+// Equals Definitions
+template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
+constexpr Equals<X, Y>::Equals(False) {}
+
+template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
+constexpr Equals<X, Y>::Equals() requires(std::same_as<X, Y>) {}
+
+template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
+constexpr Equals<X, Y>::Equals(Equals<Y, X>) requires(!std::same_as<X, Y>) {}
+
+template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
+template<Variable<int> Z>
+constexpr Equals<X, Y>::Equals(Equals<X, Z>, Equals<Z, Y>) {}
+
+template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
+constexpr Equals<X, Y>::Equals() {}
 
 // peano arithmetic:
 
@@ -213,7 +366,9 @@ struct N : MakeVariable<int> {
 struct Axioms {
     template<Expression E1, Expression E2, Expression... Equalities>
         requires(std::same_as<EqSubst<E1, Equalities...>, EqSubst<E2, Equalities...>>)
-    static constexpr E1 from_subst(E2, Equalities...);
+    static constexpr E1 from_subst(E2, Equalities...) {
+        return MakeExpression::produce<E1>();
+    }
 
     using x = FV<int, 'x'>;
     using y = FV<int, 'y'>;
@@ -243,6 +398,7 @@ struct Axioms {
             >
         >>
         successor_injective;
+
     static const inline
         ForAll<int, 'x',
             Equals<
@@ -269,6 +425,7 @@ struct Axioms {
             >
         >
         multiplication_base;
+        
     static const inline
         ForAll<int, 'x', ForAll<int, 'y',
             Equals<
