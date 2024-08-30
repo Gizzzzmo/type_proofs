@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29.0)
+cmake_minimum_required(VERSION 3.22.0)
 
 project(type_proofs LANGUAGES C CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

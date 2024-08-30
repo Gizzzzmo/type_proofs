@@ -3,6 +3,9 @@
 #include <concepts>
 #include <functional>
 #include <iostream>
+#include <limits>
+#include <type_traits>
+#include <cassert>
 
 #include "empty_types.hpp"
 #include "algo.hpp"
@@ -155,7 +158,7 @@ struct Equals : MakeExpression {
     constexpr Equals(False) __attribute__((const));
     constexpr Equals() requires (std::same_as<X, Y>) __attribute__ ((const));
     constexpr Equals(Equals<Y, X>) requires(!std::same_as<X, Y>)__attribute__ ((const));
-    template<Variable<int> Z>
+    template<Variable<typename X::type> Z>
     constexpr Equals(Equals<X, Z>, Equals<Z, Y>) __attribute__ ((const));
 
     template<typename, fv_tag_t, typename...>
@@ -202,7 +205,7 @@ constexpr Not<E>::Not(Implies<E, False>) {}
 template<Expression E>
 template<Expression NegE> requires (std::same_as<E, Not<NegE>>)
 constexpr NegE Not<E>::elim() const {
-    return produce<NegE>();
+    return MakeExpression::produce<NegE>();
 }
 
 template<Expression E>
@@ -218,12 +221,12 @@ constexpr And<E1, E2>::And(E1, E2) {}
 
 template<Expression E1, Expression E2>
 constexpr E1 And<E1, E2>::left_elim() const {
-    return produce<E1>();
+    return MakeExpression::produce<E1>();
 }
 
 template<Expression E1, Expression E2>
 constexpr E2 And<E1, E2>::right_elim() const {
-    return produce<E2>();
+    return MakeExpression::produce<E2>();
 }
 
 template<Expression E1, Expression E2>
@@ -243,7 +246,7 @@ constexpr Or<E1, E2>::Or(E2) requires (!std::same_as<E1, E2> && !std::same_as<E2
 template<Expression E1, Expression E2>
 template<Expression Consequence>
 constexpr Consequence Or<E1, E2>::elim(Implies<E1, Consequence>, Implies<E2, Consequence>) const {
-    return produce<Consequence>();
+    return MakeExpression::produce<Consequence>();
 }
 
 template<Expression E1, Expression E2>
@@ -260,7 +263,7 @@ constexpr Implies<Assumption, Consequence>::Implies(deriv<Consequence, Assumptio
 
 template<Expression Assumption, Expression Consequence>
 constexpr Consequence Implies<Assumption, Consequence>::elim(Assumption) const {
-    return produce<Consequence>();
+    return MakeExpression::produce<Consequence>();
 }
 
 template<Expression Assumption, Expression Consequence>
@@ -282,13 +285,13 @@ constexpr ForAll<T, x, E>::ForAll(deriv<E, Context...>, Context...) {}
 template<typename T, fv_tag_t x, Expression E>
 template<Variable<T> X>
 constexpr Subst<E, T, x, X> ForAll<T, x, E>::elim() const {
-    return produce<Subst<E, T, x, X>>();
+    return MakeExpression::produce<Subst<E, T, x, X>>();
 }
 
 template<typename T, fv_tag_t x, Expression E>
 template<fv_tag_t y> requires(!FreeIn<FV<T, y>, E>)
 constexpr ForAll<T, y, Subst<E, T, x, FV<T, y>>> ForAll<T, x, E>::rename() const {
-    return produce<ForAll<T, y, Subst<E, T, x, FV<T, y>>>>();
+    return MakeExpression::produce<ForAll<T, y, Subst<E, T, x, FV<T, y>>>>();
 }
 
 template<typename T, fv_tag_t x, Expression E>
@@ -307,13 +310,13 @@ template<typename T, fv_tag_t x, Expression E>
 template<Expression Consequence, Expression... Context>
     requires(!FreeIn<FV<T, x>, Consequence> && (!FreeIn<FV<T, x>, Context> && ...))
 constexpr Consequence Exists<T, x, E>::elim(deriv<Consequence, E, Context...>, Context...) const {
-    return produce<Consequence>();
+    return MakeExpression::produce<Consequence>();
 }
 
 template<typename T, fv_tag_t x, Expression E>
 template<fv_tag_t y> requires(!FreeIn<FV<T, y>, E>)
 constexpr Exists<T, y, Subst<E, T, x, FV<T, y>>> Exists<T, x, E>::rename() const {
-    return produce<Exists<T, y, Subst<E, T, x, FV<T, y>>>>();
+    return MakeExpression::produce<Exists<T, y, Subst<E, T, x, FV<T, y>>>>();
 }
 
 template<typename T, fv_tag_t x, Expression E>
@@ -331,36 +334,60 @@ template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typ
 constexpr Equals<X, Y>::Equals(Equals<Y, X>) requires(!std::same_as<X, Y>) {}
 
 template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
-template<Variable<int> Z>
+template<Variable<typename X::type> Z>
 constexpr Equals<X, Y>::Equals(Equals<X, Z>, Equals<Z, Y>) {}
 
 template<GenericVar X, GenericVar Y> requires(std::same_as<typename X::type, typename Y::type>)
 constexpr Equals<X, Y>::Equals() {}
 
-// peano arithmetic:
+// peano_int arithmetic:
+
+struct MakeCustomIntegral {};
+
+struct peano_int : MakeCustomIntegral {
+    private:
+        constexpr peano_int(int x, True) : x(x) {  }
+    public:
+        consteval peano_int(int x) : x(x) { assert(x >= 0); }
+        constexpr operator int() const { return x; }
+        const int x;
+        constexpr peano_int operator+(peano_int other) const { return peano_int(x + other.x, True()); }
+};
 
 // signature:
 // constant
-struct Zero : MakeVariable<int> { MAKE_VARIABLE(int); };
+template<CustomIntegral T>
+struct Zero : MakeVariable<T> { MAKE_VARIABLE(T); };
 
 // functions
-template<Variable<int> X>
-struct Succ : MakeVariable<int> { MAKE_VARIABLE(int); };
+template<GenericVar X> requires (CustomIntegral<typename X::type>)
+struct Succ : MakeVariable<typename X::type> { MAKE_VARIABLE(typename X::type); };
 
-template<Variable<int> X, Variable<int> Y>
-struct Plus : MakeVariable<int> { MAKE_VARIABLE(int); };
+template<GenericVar X> requires (CustomIntegral<typename X::type> && std::is_signed_v<typename X::type>)
+struct Pred : MakeVariable<typename X::type> { MAKE_VARIABLE(typename X::type); };
 
-template<Variable<int> X, Variable<int> Y>
-struct Times : MakeVariable<int> { MAKE_VARIABLE(int); };
+template<GenericVar X, GenericVar Y>
+    requires (CustomIntegral<typename X::type> && std::same_as<typename X::type, typename Y::type>)
+struct Plus : MakeVariable<typename X::type> { MAKE_VARIABLE(typename X::type); };
+
+template<GenericVar X, GenericVar Y>
+    requires (CustomIntegral<typename X::type> && std::same_as<typename X::type, typename Y::type>)
+struct Times : MakeVariable<typename X::type> { MAKE_VARIABLE(typename X::type); };
+
 // mapping to primitive type
-template<int _x> requires (_x >= 0)
-struct N : MakeVariable<int> {
-    MAKE_VARIABLE(int);
-    static constexpr int x = _x; 
+template<auto _x, CustomIntegral T = decltype(_x)> requires (std::convertible_to<decltype(_x), T>)
+struct N : MakeVariable<T> {
+    MAKE_VARIABLE(T);
+    static constexpr T x = _x; 
+};
+
+template<auto _x> requires (_x >= 0)
+struct N<_x, peano_int> : MakeVariable<peano_int> {
+    MAKE_VARIABLE(peano_int);
+    static constexpr peano_int x = _x;
 };
 
 // predicates
-
 // axioms
 
 struct Axioms {
@@ -370,85 +397,120 @@ struct Axioms {
         return MakeExpression::produce<E1>();
     }
 
-    using x = FV<int, 'x'>;
-    using y = FV<int, 'y'>;
-    static const inline Equals<N<0>, Zero>
+    template<CustomIntegral T>
+    static constexpr inline Equals<N<0, T>, Zero<T>>
         primitive_base;
 
-    template<int _x> requires (_x >= 0)
-    static const inline Equals<Succ<N<_x>>, N<_x + 1>>
+    template<auto _x, CustomIntegral T = decltype(_x)> requires (std::convertible_to<decltype(_x), T>)
+    static constexpr inline Equals<Succ<N<_x, T>>, N<_x + 1, T>>
         primitive_succ;
 
-    template<int _x, int _y> requires (_x >= 0 && _y >= 0)
-    static const inline Equals<Plus<N<_x>, N<_y>>, N<_x + _y>>
+    template<auto _x, CustomIntegral T = decltype(_x)> requires (std::convertible_to<decltype(_x), T> && std::is_signed_v<T>)
+    static constexpr inline Equals<Pred<N<_x, T>>, N<_x - 1, T>>
+        primitive_pred;
+
+    template<auto _x, auto _y, CustomIntegral T = std::common_type_t<decltype(_x), decltype(_y)>>
+        requires (std::convertible_to<decltype(_x), T> && std::convertible_to<decltype(_y), T>)
+    static constexpr inline Equals<Plus<N<_x, T>, N<_y, T>>, N<_x + _y, T>>
         primitive_plus;
 
-    template<int _x, int _y> requires (_x >= 0 && _y >= 0)
-    static const inline Equals<Times<N<_x>, N<_y>>, N<_x * _y>>
+    template<auto _x, auto _y, CustomIntegral T = std::common_type_t<decltype(_x), decltype(_y)>>
+        requires (std::convertible_to<decltype(_x), T> && std::convertible_to<decltype(_y), T>)
+    static constexpr inline Equals<Times<N<_x, T>, N<_y, T>>, N<_x * _y, T>>
         primitive_times;
 
-    static const inline Not<Exists<int, 'x', Equals<Succ<x>, Zero>>>
+    template<CustomIntegral T> requires (std::is_unsigned_v<T>)
+    static constexpr inline Equals<Succ<N<std::numeric_limits<T>::max(), T>>, Zero<T>>
+        wraparound;
+
+    template<fv_tag_t x = 'x'>
+    static constexpr inline Not<Exists<peano_int, x, Equals<Succ<FV<peano_int, x>>, Zero<peano_int>>>>
         zero_is_no_successor;
 
-    static const inline 
-        ForAll<int, 'x', ForAll<int, 'y', 
+    template<CustomIntegral T, fv_tag_t x = 'x', fv_tag_t y = 'y'> requires (x != y)
+    static constexpr inline 
+        ForAll<T, x, ForAll<T, y, 
             Implies<
-                Equals<Succ<x>, Succ<y>>,
-                Equals<x, y>
+                Equals<Succ<FV<T, x>>, Succ<FV<T, y>>>,
+                Equals<FV<T, x>, FV<T, y>>
             >
         >>
         successor_injective;
 
-    static const inline
-        ForAll<int, 'x',
+    template<CustomIntegral T, fv_tag_t x = 'x', fv_tag_t y = 'y'> requires (x != y && std::is_signed_v<T>)
+    static constexpr inline
+        ForAll<T, x, ForAll<T, y,
+            Implies<
+                Equals<Pred<FV<T, x>>, Pred<FV<T, y>>>,
+                Equals<FV<T, x>, FV<T, y>>
+            >
+        >>
+        predecessor_injective;
+
+    template<CustomIntegral T, fv_tag_t x = 'x'> requires (std::is_signed_v<T>)
+    static constexpr inline
+        ForAll<T, x,
             Equals<
-                Plus<x, Zero>, 
-                x
+                Pred<Succ<FV<T, x>>>,
+                FV<T, x>
+            >
+        >
+        successor_predecessor_inverse;
+
+    template<CustomIntegral T, fv_tag_t x = 'x'>
+    static constexpr inline
+        ForAll<T, x,
+            Equals<
+                Plus<FV<T, x>, Zero<T>>, 
+                FV<T, x>
             >
         >
         addition_base;
 
-    static const inline
-        ForAll<int, 'x', ForAll<int, 'y',
+    template<CustomIntegral T, fv_tag_t x = 'x', fv_tag_t y = 'y'> requires (x != y)
+    static constexpr inline
+        ForAll<T, x, ForAll<T, y,
             Equals<
-                Plus<x, Succ<y>>,
-                Succ<Plus<x, y>>
+                Plus<FV<T, x>, Succ<FV<T, y>>>,
+                Succ<Plus<FV<T, x>, FV<T, y>>>
             >
         >>
         addition_recursion;
     
-    static const inline
-        ForAll<int, 'x',
+    template<CustomIntegral T, fv_tag_t x = 'x'>
+    static constexpr inline
+        ForAll<T, x,
             Equals<
-                Times<x, Zero>, 
-                Zero
+                Times<FV<T, x>, Zero<T>>, 
+                Zero<T>
             >
         >
         multiplication_base;
-        
-    static const inline
-        ForAll<int, 'x', ForAll<int, 'y',
+
+    template<CustomIntegral T, fv_tag_t x = 'x', fv_tag_t y = 'y'> requires (x != y)
+    static constexpr inline
+        ForAll<T, x, ForAll<T, y,
             Equals<
-                Times<x, Succ<y>>,
+                Times<FV<T, x>, Succ<FV<T, y>>>,
                 Plus<
-                    Times<x, y>,
-                    x
+                    Times<FV<T, x>, FV<T, y>>,
+                    FV<T, x>
                 >
             >
         >>
         multiplication_recursion;
 
-    template<fv_tag_t x, Expression E>
-        requires(FreeIn<FV<int, x>, E>)
-    static const inline
+    template<Expression E, fv_tag_t x = 'x'>
+        requires(FreeIn<FV<peano_int, x>, E>)
+    static constexpr inline
         Implies<
             And<
-                Subst<E, int, x, Zero>,
-                ForAll<int, x,
-                    Implies<E, Subst<E, int, x, Succ<FV<int, x>>>>
+                Subst<E, peano_int, x, Zero<peano_int>>,
+                ForAll<peano_int, x,
+                    Implies<E, Subst<E, peano_int, x, Succ<FV<peano_int, x>>>>
                 >
             >,
-            ForAll<int, 'x', E>
+            ForAll<peano_int, x, E>
         >
         induction;
 

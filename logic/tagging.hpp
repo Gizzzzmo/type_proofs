@@ -19,8 +19,8 @@ struct TaggedValImpl {
 };
 
 template<GenericVar X>
-struct TaggedValImpl<X, int> {
-    using type = Int<X>;
+struct TaggedValImpl<X, peano_int> {
+    using type = Peano<X>;
 };
 
 template<GenericVar X>
@@ -138,22 +138,29 @@ struct Tagger<T, x, FVs...> {
     } 
 };
 
-template<typename T, fv_tag_t x, FreeVar... FVs>
+template<fv_tag_t x, typename T, FreeVar... FVs>
     requires (!IsIn<FV<T, x>, TypeList<FVs...>>)
-static std::pair<Context<FVs..., FV<T, x>>, TaggedVal<FV<T, x>>> create_tagged(Context<FVs...>&& c, T t) {
+constexpr auto create_tagged(Context<FVs...>&& c, T t) {
     return std::move(Tagger<T, x, FVs...>::create(std::move(c), t));
 }
 
 template<typename T, FreeVar... FVs>
-static std::pair<
-    Context<FVs..., FV<T, UnusedFV<T, TypeList<FVs...>>::tag>>,
-    TaggedVal<FV<T, UnusedFV<T, TypeList<FVs...>>::tag>>
-> create_tagged(Context<FVs...>&& c, T t) {
-    return std::move(Tagger<T, UnusedFV<T, TypeList<FVs...>>::tag, FVs...>::create(std::move(c), t));
+constexpr auto create_tagged(Context<FVs...>&& c, T t) {
+    using MyTagger = Tagger<T, UnusedFV<T, TypeList<FVs...>>::tag, FVs...>;
+    return std::move(MyTagger::create(std::move(c), t));
 }
 
+template<fv_tag_t x, typename Tagged, FreeVar... FVs>
+    requires (!IsIn<FV<typename Tagged::Wrapped, x>, TypeList<FVs...>>)
+constexpr auto create_tagged_split(Context<FVs...>&& c0, Tagged t) {
+    using WrappedT = typename Tagged::Wrapped;
+    using Tag = typename Tagged::TagVar;
+    return std::move(Tagger<WrappedT, x, FVs...>::template split<Tag>(std::move(c0), t));
+}
+
+
 template<typename Tagged, FreeVar... FVs>
-static constexpr auto create_tagged_split(Context<FVs...>&& c0, Tagged t) { 
+constexpr auto create_tagged_split(Context<FVs...>&& c0, Tagged t) { 
     using WrappedT = typename Tagged::Wrapped;
     using Tag = typename Tagged::TagVar;
     using MyTagger = Tagger<WrappedT, UnusedFV<WrappedT, TypeList<FVs...>>::tag, FVs...>;

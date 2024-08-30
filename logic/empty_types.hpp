@@ -61,11 +61,31 @@ struct Equals;
 template<typename T, fv_tag_t _x> struct FV;
 
 
-// peano
-struct Zero;
-template<Variable<int>> struct Succ;
-template<Variable<int>, Variable<int>> struct Plus;
-template<Variable<int>, Variable<int>> struct Times;
+// peano_int
+
+
+struct MakeCustomIntegral;
+
+template<typename T>
+concept CustomIntegral = (std::integral<T> || std::is_base_of_v<MakeCustomIntegral, T>) && !std::is_same_v<T, bool>;
+
+struct peano_int;
+
+template<CustomIntegral T> struct Zero;
+
+template<GenericVar X> requires (CustomIntegral<typename X::type>)
+struct Succ;
+
+template<GenericVar X> requires (CustomIntegral<typename X::type> && std::is_signed_v<typename X::type>)
+struct Pred;
+
+template<GenericVar X, GenericVar Y>
+    requires (CustomIntegral<typename X::type> && std::same_as<typename X::type, typename Y::type>)
+struct Plus;
+
+template<GenericVar X, GenericVar Y>
+    requires (CustomIntegral<typename X::type> && std::same_as<typename X::type, typename Y::type>)
+struct Times;
 
 
 // tagging logic
@@ -86,8 +106,8 @@ class Context;
 
 
 // tagged types
-template<Variable<int> X>
-class Int;
+template<Variable<peano_int> X>
+class Peano;
 
 template<Expression E>
 class Bool;

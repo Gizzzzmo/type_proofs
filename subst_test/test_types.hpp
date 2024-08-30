@@ -5,7 +5,7 @@
 using namespace logic;
 
 using test1 = And<
-    Equals<FV<int, 'y'>, Zero>,
+    Equals<FV<int, 'y'>, Zero<int>>,
     ForAll<int, 'x',
         Or<
             Equals<FV<int, 'y'>, FV<int, 'x'>>,

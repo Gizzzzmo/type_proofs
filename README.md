@@ -12,7 +12,7 @@ Should investigate whether these rules can easily checked with some custom clang
 ## Runtime mapping ("tagging", WIP)
 One can also create runtime "tagged" types that wrap some other type, and additionally contain a "tag" that expresses something about the runtime contents of the wrapped type.
 
-For example, in logic.hpp there are the `Variable` types that are used to make statements about natural numbers (implementation of peano arithmetic).
+For example, in logic.hpp there are the `Variable` types that are used to make statements about natural numbers (implementation of peano_int arithmetic).
 These are things like `Zero`, `Succ<Zero>`, `FV<int, 0>`, `Plus<FV<int, 1>, Succ<Zero>>`, etc.
 These types do not contain any runtime values.
 We can make statements (`Expression` types) about them using the `Equals` predicate, thereby enabling proof checking at compile time.
@@ -29,13 +29,13 @@ So one could write a function that only makes sense if its input is for example 
 
 ## Goals
 
-### Formalize a non trivial theorem in peano arithmetic and proof it
+### Formalize a non trivial theorem in peano_int arithmetic and proof it
 Maybe something like "5 is prime" to start with?
 
 ### Implement ZFC
 Set theory axioms.
 
-### Change int formalization from peano axioms to integer axioms (include negative numbers)
+### Change int formalization from peano_int axioms to integer axioms (include negative numbers)
 
 ### Validate soundness of implementation
 
@@ -47,3 +47,7 @@ Set theory axioms.
 ### Improve syntax
 
 In particular substitution could probably be implemented with a constructor in MAKE_EXPRESSION macro.
+
+### Improve renaming of bound variables
+
+Only top level bound variables can be renamed, which makes it impossible sometimes to eliminate a variable with another variable that contains a free variable which is bound is some nested quantifier.

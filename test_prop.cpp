@@ -101,16 +101,17 @@ E1 disjunctive_syllogism(Or<E1, E2> disj, Not<E2> not_e2) {
 template True disjunctive_syllogism(Or<True, False>, Not<False>);
 template True disjunctive_syllogism(Or<True, True>, Not<True>);
 
+using ZeroP = Zero<peano_int>;
 using blub = Subst<
-    And<Equals<FV<int, 'y'>, FV<int, 'y'>>, Equals<FV<int, 'x'>, Zero>>, 
-    int, 'x',
-    Succ<Zero>
+    And<Equals<FV<peano_int, 'y'>, FV<peano_int, 'y'>>, Equals<FV<peano_int, 'x'>, ZeroP>>, 
+    peano_int, 'x',
+    Succ<ZeroP>
 >;
 
-using y = FV<int, 'y'>;
+using y = FV<peano_int, 'y'>;
 deriv<And<True, Equals<y, y>>> test_proof = 
 []() {
-    using y = FV<int, 'y'>;
+    using y = FV<peano_int, 'y'>;
     Equals<y, y> refl;
     True t;
     And<True, Equals<y, y>> both(t, refl);
@@ -119,35 +120,35 @@ deriv<And<True, Equals<y, y>>> test_proof =
 
 
 auto test_for_all() {
-    ForAll<int, 'y', And<True, Equals<FV<int, 'y'>, FV<int, 'y'>>>> fa(test_proof);
+    ForAll<peano_int, 'y', And<True, Equals<FV<peano_int, 'y'>, FV<peano_int, 'y'>>>> fa(test_proof);
 
-    auto inst = fa.elim<Succ<Zero>>();
+    auto inst = fa.elim<Succ<ZeroP>>();
     return inst;
 }
 
 
-using x = FV<int, 'x'>;
-using y = FV<int, 'y'>;
+using x = FV<peano_int, 'x'>;
+using y = FV<peano_int, 'y'>;
 
-template<Variable<int> X>
-using is_successor = Exists<int, 'y', Equals<Succ<y>, X>>;
+template<Variable<peano_int> X>
+using is_successor = Exists<peano_int, 'y', Equals<Succ<y>, X>>;
 
-using to_prove = Or<Equals<x, Zero>, is_successor<x>>;
+using to_prove = Or<Equals<x, ZeroP>, is_successor<x>>;
 
-using base_to_prove = Subst<to_prove, int, 'x', Zero>;
+using base_to_prove = Subst<to_prove, peano_int, 'x', ZeroP>;
 
 using induction_hyp = to_prove;
-using induction_next = Subst<to_prove, int, 'x', Succ<x>>;
+using induction_next = Subst<to_prove, peano_int, 'x', Succ<x>>;
 using step_to_prove = Implies<
     induction_hyp,
     induction_next
 >;
 
-using step_generalization = ForAll<int, 'x', step_to_prove>;
+using step_generalization = ForAll<peano_int, 'x', step_to_prove>;
 
-deriv<ForAll<int, 'x', to_prove>>
+deriv<ForAll<peano_int, 'x', to_prove>>
 test_induction = [] () {
-    Equals<Zero, Zero> refl;
+    Equals<ZeroP, ZeroP> refl;
     base_to_prove base(refl);
 
     deriv<step_to_prove> step_proof = []() {
@@ -163,12 +164,12 @@ test_induction = [] () {
 
     And<base_to_prove, step_generalization> combine(base, gen);
 
-    return Axioms::induction<'x', to_prove>.elim(combine);
+    return Axioms::induction<to_prove>.elim(combine);
 };
 
-using One = N<1>;
-using Two = N<2>;
-using Three = N<3>;
+using One = N<1, peano_int>;
+using Two = N<2, peano_int>;
+using Three = N<3, peano_int>;
 
 deriv<
     Implies<Equals<y, Two>, Equals<Plus<x, y>, Three>>,
@@ -178,7 +179,7 @@ deriv<
     deriv<Equals<Plus<x, y>, Three>, Equals<y, Two>, Equals<x, One>> d =
     [](Equals<y, Two> y_is_two, Equals<x, One> x_is_one) {
         Equals<Plus<x, y>, Plus<x, y>> refl;
-        auto add = Axioms::primitive_plus<1, 2>;
+        auto add = Axioms::primitive_plus<1, 2, peano_int>;
         auto sub = Axioms::from_subst<Equals<Plus<x, y>, Three>>(refl, y_is_two, x_is_one, add);
         return sub;
     };
