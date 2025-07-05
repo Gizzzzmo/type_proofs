@@ -18,7 +18,7 @@ deriv<False, Not<True>> not_true_implies_false =
 
 deriv<Not<False>, True> true_implies_not_false = 
 [](True t) {
-    std::function<False(False)> contr = [](False f) {
+    deriv<False, False> contr = [](False f) {
         return f;
     };
 
@@ -55,12 +55,13 @@ template False modus_ponens<False, False>(False, Implies<False, False>);
 
 template<Expression E1, Expression E2>
 Not<E1> modus_tollens(Not<E2> not_cons, Implies<E1, E2> impl) {
-    std::function<False(E1)> contr = [impl, not_cons](E1 ass){
-        E2 cons = impl.elim(ass);
-        return False(not_cons, cons);
-    };
+    deriv<False, E1, Implies<E1, E2>, Not<E2>> contr =
+        [](E1 ass, Implies<E1, E2> impl, Not<E2> not_cons){
+            E2 cons = impl.elim(ass);
+            return False(not_cons, cons);
+        };
 
-    return Not<E1>(Implies<E1, False>(contr));
+    return Not<E1>(Implies<E1, False>(contr, impl, not_cons));
 }
 
 template Not<True> modus_tollens<True, True>(Not<True>, Implies<True, True>);
@@ -70,10 +71,11 @@ template Not<False> modus_tollens<False, False>(Not<False>, Implies<False, False
 
 template<Expression E1, Expression E2, Expression E3>
 Implies<E1, E3> implication_transitivity(Implies<E1, E2> impl1, Implies<E2, E3> impl2) {
-    std::function<E3(E1)> deriv = [impl1, impl2](E1 ass) {
-        return impl2.elim(impl1.elim(ass));
+    deriv<E3, E1, Implies<E1, E2>, Implies<E2, E3>> deriv = 
+        [](E1 ass, Implies<E1, E2> impl1, Implies<E2, E3> impl2) {
+            return impl2.elim(impl1.elim(ass));
     };
-    return Implies<E1, E3>(deriv);
+    return Implies<E1, E3>(deriv, impl1, impl2);
 }
 
 template Implies<True, False> implication_transitivity(Implies<True, False>, Implies<False, False>);
@@ -82,13 +84,13 @@ template Implies<True, False> implication_transitivity(Implies<True, True>, Impl
 template<Expression E1, Expression E2>
 E1 disjunctive_syllogism(Or<E1, E2> disj, Not<E2> not_e2) {
     
-    std::function<E1(E1)> deriv1 = [](E1 e1) {
+    deriv<E1, E1> deriv1 = [](E1 e1) {
         return e1;
     };
 
     Implies<E1, E1> impl1(deriv1);
     
-    std::function<E1(E2, Not<E2>)> deriv2 = [](E2 e2, Not<E2> not_e2) {
+    deriv<E1, E2, Not<E2>> deriv2 = [](E2 e2, Not<E2> not_e2) {
         False f(e2, not_e2);
         return E1(f);
     };

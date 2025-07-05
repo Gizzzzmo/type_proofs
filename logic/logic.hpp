@@ -103,7 +103,7 @@ struct Or : MakeExpression {
 };
 
 template<Expression Consequence, Expression... Assumptions>
-using deriv = std::function<Consequence(Assumptions...)>;
+using deriv = Consequence(*)(Assumptions...);
 
 template<Expression Assumption, Expression Consequence>
 struct Implies : MakeExpression {
@@ -379,12 +379,6 @@ template<auto _x, CustomIntegral T = decltype(_x)> requires (std::convertible_to
 struct N : MakeVariable<T> {
     MAKE_VARIABLE(T);
     static constexpr T x = _x; 
-};
-
-template<auto _x> requires (_x >= 0)
-struct N<_x, peano_int> : MakeVariable<peano_int> {
-    MAKE_VARIABLE(peano_int);
-    static constexpr peano_int x = _x;
 };
 
 template<auto _x> requires (_x >= 0)

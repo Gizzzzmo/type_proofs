@@ -8,20 +8,22 @@ using _x = FV<peano_int, 'x'>;
 using ZeroP = Zero<peano_int>;
 
 template<Variable<peano_int> V1, Variable<peano_int> V2>
-auto no_successor_is_zero(Equals<V1, Succ<V2>> v1_succ_of_v2) -> Not<Equals<V1, ZeroP>>{
+Not<Equals<V1, ZeroP>> no_successor_is_zero(Equals<V1, Succ<V2>> v1_is_succ_v2) {
+    using ZeroP = Zero<peano_int>;
+    using _x = FV<peano_int, 'x'>;
+
     deriv<False, Equals<V1, ZeroP>, Equals<V1, Succ<V2>>> proof =
-    [](Equals<V1, ZeroP> z_zero, Equals<Succ<V2>, V1> z_is_succ_of_y){
-        Equals<Succ<V2>, ZeroP> zero_is_succ_of_y(z_is_succ_of_y, z_zero);
+    [](Equals<V1, ZeroP> z_zero, Equals<V1, Succ<V2>> z_is_succ_of_y){
+        Equals<Succ<V2>, V1> z_is_succ_of_y_swapped(z_is_succ_of_y);
+        Equals<Succ<V2>, ZeroP> zero_is_succ_of_y(z_is_succ_of_y_swapped, z_zero);
         Exists<peano_int, 'x', Equals<Succ<_x>, ZeroP>> zero_is_succesor(zero_is_succ_of_y, V2());
         False f(Axioms::zero_is_no_successor<>, zero_is_succesor);
 
         return f;
     };
 
-    Implies<Equals<V1, ZeroP>, False> contr(proof, v1_succ_of_v2);
-    Not<Equals<V1, ZeroP>> req(contr);
-
-    return req;
+    Implies<Equals<V1, ZeroP>, False> impl(proof, v1_is_succ_v2);
+    return Not<Equals<V1, ZeroP>>(impl);
 }
 
 template<Variable<peano_int> V, Variable<peano_int> X, auto n> requires(n > 0)
