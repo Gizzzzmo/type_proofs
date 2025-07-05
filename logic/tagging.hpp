@@ -95,24 +95,36 @@ class FnDispatcher<
         constexpr FnDispatcher(Fn fn) : fn(fn) {}
 
         template<typename Cont, typename... InTaggedVals> requires (sizeof...(InTaggedVals) == sizeof...(ExFVs))
-        auto operator()(
-            Cont,
-            EqSubstList<
-                AssEs, Zip<TypeList<ExFVs...>,
-                TypeList<typename InTaggedVals::TagVar...>, Equals>
+        auto operator()( // TODO: add requirement for Cont to actually be a context
+            Cont,        // that contains the tags of InTaggedVals.
+            EqSubstList< // Substitute the free variable tags that the function expects
+                AssEs,   // with those that caller provided (inferred from `inputs` pack)
+                Zip<
+                    TypeList<ExFVs...>,
+                    TypeList<typename InTaggedVals::TagVar...>,
+                    Equals
+                >
             >...,
             InTaggedVals... inputs
         ) const {
-            // can construct fn's inputs from nothing
+            // construct fn's context
             Context<ExFVs...> c_in;
             auto _fn = static_cast<
                 std::function<OutPackage(Context<ExFVs...>, TaggedVal<ExFVs>..., AssEs...)>
             >(fn);
 
+            // class is friend of all expression types,
+            // meaning is can construct the assumed expressions from nothing.
+            // For this to be sound the function may only be called
+            // when the caller can provide the assumptions
+            // substituted with the tags of the input variables
+            // (hence this operator's second argument)
             OutPackage result = _fn(std::move(c_in), TaggedVal<ExFVs>(inputs)..., AssEs()...);
 
-            // for each free variable in ProdFVs, that is not in ExFVs, need to add one to output of final context
-            
+            // for each free variable in ProdFVs, that is not in ExFVs,
+            // need to add one to output of final context
+    
+
         }
     private:
         const Fn fn;

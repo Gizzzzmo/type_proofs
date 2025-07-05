@@ -387,6 +387,11 @@ struct N<_x, peano_int> : MakeVariable<peano_int> {
     static constexpr peano_int x = _x;
 };
 
+template<auto _x> requires (_x >= 0)
+struct N<_x, peano_int> : MakeVariable<peano_int> {
+    MAKE_VARIABLE(peano_int);
+    static constexpr peano_int x = _x;
+};
 // predicates
 // axioms
 
@@ -515,6 +520,9 @@ struct Axioms {
         induction;
 
 };
+
+
+
 
 #ifndef NOT_NAMESPACED
 } // namespace logic

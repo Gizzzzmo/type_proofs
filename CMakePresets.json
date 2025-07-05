@@ -4,26 +4,27 @@
         {
             "name": "Clang_14.0.0_x86_64-pc-linux-gnu-debug",
             "displayName": "Clang_14.0.0_x86_64-pc-linux-gnu-debug",
-            "description": "Using compilers: C = /usr/bin/clang, CXX = /usr/bin/clang++",
+
+            "description": "Using compilers: C = clang, CXX = clang++",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "generator": "Ninja",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "CMAKE_C_COMPILER": "/usr/bin/clang",
-                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
             "name": "Clang_14.0.0_x86_64-pc-linux-gnu-release",
             "displayName": "Clang_14.0.0_x86_64-pc-linux-gnu-release",
-            "description": "Using compilers: C = /usr/bin/clang, CXX = /usr/bin/clang++",
+            "description": "Using compilers: C = clang, CXX = clang++",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "generator": "Ninja",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
-                "CMAKE_C_COMPILER": "/usr/bin/clang",
-                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_BUILD_TYPE": "Release"
             }
         }

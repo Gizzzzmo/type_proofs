@@ -385,7 +385,8 @@ template<
     template<typename...> class outer = TypeList
 > using Zip = typename ZipImpl<List1, List2, inner, outer>::type;
 
-
+template<typename Context>
+struct ContextExtender;
 
 
 #ifndef NOT_NAMESPACED
